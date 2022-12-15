@@ -1,2 +1,2 @@
-# compilador
-Compilador desenvolvido em python para a linguagem Lisp
+# Projeto de Compilador
+Compilador desenvolvido em python para a linguagem BASIC (Adaptada)

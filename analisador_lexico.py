@@ -1,8 +1,15 @@
-# Variáveis globais
-output = []
-numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
-letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
-reserved = ['defun', 'write-line']
+from classes import Token
+from constants import *
+
+def print_red(msg): 
+    print(f"\033[91m{msg}\033[00m")
+
+def check_identifier(string):
+    if len(string) == 1 and string.isalpha():
+        return True
+    elif string[0].isalpha() and string[1:].isalnum():
+        return True
+    return False
 
 def pre_process(line):
     line = line.replace('(', ' ( ')
@@ -13,19 +20,35 @@ def pre_process(line):
     return line
 
 def run():
-    f = open("entrada.lisp", "r")
+    f = open("entrada.vb", "r")
+    output = []
+    errors = []
     for line in f:
-        data = {}
+        data = []
         line = pre_process(line)
         for string in line:
-            if string in reserved:
-                data[string] = 'keyword'
-            try:
-                int(string)
-                data[string] = 'number'
-            except:
-                pass
-        output.append(data)
-    print(output)
+            # Lógica do reconhecimento de tokens
+            if string == "=":
+                data.append(Token(string, "atribuição"))
+            elif string in OPERATORS:
+                data.append(Token(string, "operador"))
+            elif string in DELIMITERS:
+                data.append(Token(string, "delimitador"))
+            elif string in KEYWORDS:
+                data.append(Token(string, string))
+            elif check_identifier(string):
+                data.append(Token(string, "identificador"))
+            else:
+                try:
+                    int(string)
+                    data.append(Token(string, "numero"))
+                except:
+                    errors.append(string)
 
+        output.append(data)
+    for i, line in enumerate(output):
+        print(f"Linha {i}: {line}")
+
+    for err in errors:
+        print_red(f"Erro: Símbolo {err} não reconhecido")
 run()

@@ -1,8 +1,7 @@
 from classes import Token
 from constants import *
+from utils import print_red
 
-def print_red(msg): 
-    print(f"\033[91m{msg}\033[00m")
 
 def check_identifier(string):
     if len(string) == 1 and string.isalpha():
@@ -51,4 +50,8 @@ def run():
 
     for err in errors:
         print_red(f"Erro: Símbolo {err} não reconhecido")
-run()
+    
+    return output
+
+if __name__ == '__main__':
+    run()

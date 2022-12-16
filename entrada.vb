@@ -1,7 +1,8 @@
+DIM n AS INT
 SUB teste
-  DIM N AS INT
-  LET N = 10
-  FOR I = 1 TO N
-  PRINT I
-  NEXT I @
+  LET n = 10
+  FOR i = 1 TO n
+    PRINT i
+  NEXT
 END SUB
+END

@@ -1,5 +1,6 @@
 global tokens, errors
 from utils import print_red, sintatic_error
+from analisador_semantico import analyse_id
 import constants
 
 def check_reserved_keyword(token, keyword):
@@ -7,15 +8,16 @@ def check_reserved_keyword(token, keyword):
         errors.append(sintatic_error(keyword, token.value, tokens.line+1))
 
 def run(token_list):
-    global tokens, errors, symbol_table, identifiers
+    global tokens, errors, symbol_table, identifiers, semantic_errors
     tokens = token_list
     errors = []
     symbol_table = []
     identifiers = []
+    semantic_errors = []
     programa()
     for err in errors:
         print_red(err)
-    return symbol_table
+    return symbol_table, semantic_errors
 
 def programa():
     if tokens.peekToken().value == None: return
@@ -50,7 +52,7 @@ def tipo():
 
 def variaveis():
     if tokens.peekToken().value == None: return
-    id("Variável inteira")
+    id("Variável inteira", "declaration")
     mais_var()
 
 def mais_var():
@@ -75,7 +77,7 @@ def procedimento():
     if tokens.peekToken().value == None: return
     token = tokens.nextToken()
     check_reserved_keyword(token, "SUB")
-    id("Procedimento")
+    id("Procedimento", "declaration")
     parametros()
     sentencas()
     token = tokens.nextToken()
@@ -88,7 +90,7 @@ def funcao():
     if tokens.peekToken().value == None: return
     token = tokens.nextToken()
     check_reserved_keyword(token, "FUNCTION")
-    id("Função")
+    id("Função", "declaration")
     parametros()
     token = tokens.nextToken()
     check_reserved_keyword(token, "AS")
@@ -113,7 +115,7 @@ def lista_parametros():
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
     if token.type == "identificador":
-        id("Parâmetro")
+        id("Parâmetro", "param")
         token = tokens.nextToken()
         check_reserved_keyword(token, "AS")
         tipo()
@@ -126,7 +128,7 @@ def cont_lista_par():
         token = tokens.nextToken()
         if token.value != ",":
             errors.append(f"Linha {tokens.line+1}: Esperava uma vírgula, mas encontrei {token.value}")
-        id("Parâmetro")
+        id("Parâmetro", "param")
         token = tokens.nextToken()
         check_reserved_keyword(token, "AS")     
         tipo()
@@ -146,7 +148,7 @@ def mais_sentencas():
 
 def var_read():
     if tokens.peekToken().value == None: return
-    id("Variável inteira")
+    id("Variável inteira", "use")
     mais_var_read()
 
 def mais_var_read():
@@ -160,7 +162,7 @@ def mais_var_read():
 
 def var_write():
     if tokens.peekToken().value == None: return
-    id("Variável inteira")
+    id("Variável inteira", "use")
     mais_var_write()
 
 def mais_var_write():
@@ -181,7 +183,7 @@ def comando():
     elif token.type == "PRINT":
         var_write()
     elif token.type == "FOR":
-        id("Variável inteira")
+        id("Variável inteira", "for")
         token = tokens.nextToken()
         if token.type != "atribuição":
             errors.append(f"Linha {tokens.line+1}: Esperava um operador de atribuição, recebi {token.value}")
@@ -213,7 +215,7 @@ def comando():
         check_reserved_keyword(token, "IF")   
     
     elif token.type == "LET":
-        id("Variável inteira")
+        id("Variável inteira", "use")
         token = tokens.nextToken()
         if token.type != "atribuição":
             errors.append(f"Linha {tokens.line+1}: Esperava um operador de atribuição, recebi {token.value}")
@@ -307,7 +309,7 @@ def fator():
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
     if token.type == "identificador":
-        id("Variável inteira")
+        id("Variável inteira", "use")
     elif token.type == "numero":
         intnum()
     elif token.value == "(":
@@ -315,17 +317,15 @@ def fator():
         token = tokens.nextToken()
         check_reserved_keyword(token, ")")
 
-def id(origin):
+def id(var_type, origin):
+    global tokens, errors, symbol_table, identifiers, semantic_errors
     if tokens.peekToken().value == None: return
     token = tokens.nextToken()
     if token.type != "identificador":
         errors.append(f"Linha {tokens.line+1}: Esperava um identificador, mas recebi {token.type}")
     else:
-        if token.value not in identifiers:
-            identifiers.append(token.value)
-            symbol_table.append(
-                [token.value, origin, 0]
-            )
+        identifiers, symbol_table, semantic_errors = analyse_id(token, var_type, origin, identifiers, symbol_table, semantic_errors)
+
 def intnum():
     if tokens.peekToken().value == None: return
     token = tokens.nextToken()

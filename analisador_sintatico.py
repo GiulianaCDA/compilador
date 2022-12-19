@@ -1,333 +1,409 @@
 global tokens, errors
 from utils import print_red, sintatic_error
 from analisador_semantico import analyse_id
+from classes import Tree, Node, Token
 import constants
 
 def check_reserved_keyword(token, keyword):
     if token.type != keyword:
         errors.append(sintatic_error(keyword, token.value, tokens.line+1))
 
+def check_delimiter(token, keyword):
+    if token.value != keyword:
+        errors.append(sintatic_error(keyword, token.value, tokens.line+1))
+
 def run(token_list):
-    global tokens, errors, symbol_table, identifiers, semantic_errors
+    global tokens, errors, symbol_table, identifiers, semantic_errors, s_tree
     tokens = token_list
     errors = []
     symbol_table = []
     identifiers = []
     semantic_errors = []
+    s_tree = Tree()
     programa()
     for err in errors:
         print_red(err)
-    return symbol_table, semantic_errors
+    return symbol_table, semantic_errors, s_tree
 
 def programa():
-    if tokens.peekToken().value == None: return
-    declara()
-    rotina()
-    sentencas()
+    s_tree.root = Node(None, Token("root","root"))
+    declara(s_tree.root)
+    rotina(s_tree.root)
+    sentencas(s_tree.root)
     token = tokens.nextToken()
     check_reserved_keyword(token, "END")
+    s_tree.root.add(token)
 
-def declara():
+def declara(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("declara", "declara"))
     token = tokens.peekToken()
     if token.value == "DIM":
-        dvar()
-        declara()
+        dvar(node)
+        declara(node)
 
 
-def dvar():
+def dvar(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("dvar", "dvar"))
     token = tokens.nextToken()
     check_reserved_keyword(token, "DIM")
-    variaveis()
+    node.add(token)
+    variaveis(node)
     token = tokens.nextToken()
     check_reserved_keyword(token, "AS")
-    tipo()
+    node.add(token)
+    tipo(node)
 
 
-def tipo():
+def tipo(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("tipo", "tipo"))
     token = tokens.nextToken()
-    check_reserved_keyword(token, "INT")
+    if token.type != "INT" and token.type != "FLOAT":
+        errors.append(sintatic_error("INT ou FLOAT", token.value, tokens.line+1))
+    node.add(token)
 
-def variaveis():
+def variaveis(parent: Node):
     if tokens.peekToken().value == None: return
-    id("Variável inteira", "declaration")
-    mais_var()
+    node = parent.add(Token("variaveis", "variaveis"))
+    id(node, "numero", "declaration")
+    mais_var(node)
 
-def mais_var():
+def mais_var(node: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
     if token.value == ",":
         token = tokens.nextToken()
         if token.value != ",":
             errors.append(f"Linha {tokens.line+1}: Esperava uma vírgula, mas encontrei {token.value}")
-        variaveis()
+        variaveis(node)
 
-def rotina():
+def rotina(parent: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
+    node = parent.add(Token("rotina", "rotina"))
     if token.value == "SUB" or token.value == "FUNCTION":
         if token.type == "SUB":
-            procedimento()
+            procedimento(node)
         elif token.type == "FUNCTION":
-            funcao()
+            funcao(node)
 
-def procedimento():
+def procedimento(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("procedimento", "procedimento"))
     token = tokens.nextToken()
     check_reserved_keyword(token, "SUB")
-    id("Procedimento", "declaration")
-    parametros()
-    sentencas()
+    node.add(token)
+    id(node, "Procedimento", "declaration")
+    parametros(node)
+    sentencas(node)
     token = tokens.nextToken()
     check_reserved_keyword(token, "END")
+    node.add(token)
     token = tokens.nextToken()
     check_reserved_keyword(token, "SUB")
-    rotina()
+    node.add(token)
+    rotina(node)
 
-def funcao():
+def funcao(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("funcao", "funcao"))
     token = tokens.nextToken()
     check_reserved_keyword(token, "FUNCTION")
-    id("Função", "declaration")
-    parametros()
+    node.add(token)
+    id(node, "Função", "declaration")
+    parametros(node)
     token = tokens.nextToken()
     check_reserved_keyword(token, "AS")
-    tipo()
-    sentencas()
+    node.add(token)
+    tipo(node)
+    sentencas(node)
     token = tokens.nextToken()
     check_reserved_keyword(token, "END")
+    node.add(token)
     token = tokens.nextToken()
     check_reserved_keyword(token, "FUNCTION")
+    node.add(token)
 
-def parametros():
+def parametros(parent: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
+    node = parent.add(Token("parametros", "parametros"))
     if token.value == "(":
         token = tokens.nextToken()
-        check_reserved_keyword(token, "(")
-        lista_parametros()
+        check_delimiter(token, "(")
+        node.add(token)
+        lista_parametros(node)
         token = tokens.nextToken()
-        check_reserved_keyword(token, ")")
+        check_delimiter(token, ")")
+        node.add(token)
 
-def lista_parametros():
+def lista_parametros(parent: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
+    node = parent.add(Token("lista_parametros", "lista_parametros"))
     if token.type == "identificador":
-        id("Parâmetro", "param")
+        id(node, "Parâmetro", "param")
         token = tokens.nextToken()
         check_reserved_keyword(token, "AS")
-        tipo()
-        cont_lista_par()
+        node.add(token)
+        tipo(node)
+        cont_lista_par(node)
 
-def cont_lista_par():
+def cont_lista_par(node: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
     if token.value == ",":
         token = tokens.nextToken()
         if token.value != ",":
             errors.append(f"Linha {tokens.line+1}: Esperava uma vírgula, mas encontrei {token.value}")
-        id("Parâmetro", "param")
+        node.add(token)
+        id(node, "Parâmetro", "param")
         token = tokens.nextToken()
         check_reserved_keyword(token, "AS")     
-        tipo()
-        cont_lista_par()
+        node.add(token)
+        tipo(node)
+        cont_lista_par(node)
 
-def sentencas():
+def sentencas(parent: Node):
     if tokens.peekToken().value == None: return
     if tokens.peekToken().value == "END": return
-    comando()
-    mais_sentencas()
+    node = parent.add(Token("sentencas", "sentencas"))
+    comando(node)
+    mais_sentencas(node)
 
-def mais_sentencas():
+def mais_sentencas(node: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
     if token.value != None and token.value != "END" and token.value != "NEXT":
-        sentencas()
+        sentencas(node)
 
-def var_read():
+def var_read(parent: Node):
     if tokens.peekToken().value == None: return
-    id("Variável inteira", "use")
-    mais_var_read()
+    node = parent.add(Token("var_read", "var_read"))
+    id(node, "Variável inteira", "use")
+    mais_var_read(node)
 
-def mais_var_read():
-    if tokens.peekToken().value == None: return
-    token = tokens.peekToken()
-    if token.value == ",":
-        token = tokens.nextToken()
-        if token.value != ",":
-            errors.append(f"Linha {tokens.line+1}: Esperava uma vírgula, mas encontrei {token.value}")
-        var_read()
-
-def var_write():
-    if tokens.peekToken().value == None: return
-    id("Variável inteira", "use")
-    mais_var_write()
-
-def mais_var_write():
+def mais_var_read(node: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
     if token.value == ",":
         token = tokens.nextToken()
         if token.value != ",":
             errors.append(f"Linha {tokens.line+1}: Esperava uma vírgula, mas encontrei {token.value}")
-        var_write()
+        var_read(node)
 
-def comando():
+def var_write(parent: Node):
+    if tokens.peekToken().value == None: return
+    node = parent.add(Token("var_write", "var_write"))
+    id(node, "Variável inteira", "use")
+    mais_var_write(node)
+
+def mais_var_write(node: Node):
+    if tokens.peekToken().value == None: return
+    token = tokens.peekToken()
+    if token.value == ",":
+        token = tokens.nextToken()
+        if token.value != ",":
+            errors.append(f"Linha {tokens.line+1}: Esperava uma vírgula, mas encontrei {token.value}")
+        var_write(node)
+
+def comando(parent: Node):
     if tokens.peekToken().value == None: return
     token = tokens.nextToken()
-    
     if token.type == "INPUT":
-        var_read()
+        node = parent.add(Token("input", "input"))
+        var_read(node)
     elif token.type == "PRINT":
-        var_write()
+        node = parent.add(Token("print", "print"))
+        var_write(node)
     elif token.type == "FOR":
-        id("Variável inteira", "for")
+        node = parent.add(Token("for", "for"))
+        id(node, "Variável inteira", "for")
         token = tokens.nextToken()
         if token.type != "atribuição":
             errors.append(f"Linha {tokens.line+1}: Esperava um operador de atribuição, recebi {token.value}")
-        expressao()
+        node.add(token)
+        expressao(node)
         token = tokens.nextToken()
         check_reserved_keyword(token, "TO")
-        expressao()
-        sentencas()
+        node.add(token)
+        expressao(node)
+        sentencas(node)
         token = tokens.nextToken()
-        check_reserved_keyword(token, "NEXT")     
+        check_reserved_keyword(token, "NEXT")
+        node.add(token)
 
     elif token.type == "DO":
+        node = parent.add(Token("do", "loop"))
         token = token.nextToken()
         check_reserved_keyword(token, "LOOP")
-        sentencas()
+        node.add(token)
+        sentencas(node)
         token = token.nextToken()
         check_reserved_keyword(token, "WHILE")
-        condicao()
+        node.add(token)
+        condicao(node)
         
     elif token.type == "IF":
-        condicao()
+        node = parent.add(Token("if", "then"))
+        condicao(node)
         token = tokens.nextToken()
-        check_reserved_keyword(token, "THEN")    
-        sentencas()
-        pfalsa()
+        check_reserved_keyword(token, "THEN")
+        node.add(token)
+        sentencas(node)
+        pfalsa(node)
         token = tokens.nextToken()
-        check_reserved_keyword(token, "END")   
+        check_reserved_keyword(token, "END")
+        node.add(token)
         token = tokens.nextToken()
-        check_reserved_keyword(token, "IF")   
-    
+        check_reserved_keyword(token, "IF")
+        node.add(token)
+
     elif token.type == "LET":
-        id("Variável inteira", "use")
+        node = parent.add(Token("let", "let"))
+        id(node, "Variável inteira", "use")
         token = tokens.nextToken()
         if token.type != "atribuição":
             errors.append(f"Linha {tokens.line+1}: Esperava um operador de atribuição, recebi {token.value}")
-        expressao()
+        node.add(token)
+        expressao(node)
     else:
-        funcao()
+        node = parent.add(Token("chamada", "chamada"))
+        chamada_funcao(node)
 
-def argumentos():
+def chamada_funcao(node: Node):
+    if tokens.peekToken().value == None: return
+    id(node, "call", "call")
+    argumentos(node)
+
+def argumentos(parent: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
+    node = parent.add(Token("argumentos", "argumentos"))
     if token.value == "(":
         token = tokens.nextToken()
-        check_reserved_keyword(token, "(")
-        lista_arg()
+        check_delimiter(token, "(")
+        node.add(token)
+        lista_arg(node)
         token = tokens.nextToken()
-        check_reserved_keyword(token, ")")
+        check_delimiter(token, ")")
+        node.add(token)
 
-def lista_arg():
+def lista_arg(parent: Node):
     if tokens.peekToken().value == None: return
-    expressao()
-    cont_lista_arg()
+    node = parent.add(Token("lista_arg", "lista_arg"))
+    expressao(node)
+    cont_lista_arg(node)
 
-def cont_lista_arg():
+def cont_lista_arg(node: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
     if token.value == ",":
         token = tokens.nextToken()
         if token.value != ",":
             errors.append(f"Linha {tokens.line+1}: Esperava uma vírgula, mas encontrei {token.value}")
-        lista_arg()
+        lista_arg(node)
 
-def pfalsa():
+def pfalsa(parent: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
+    node = parent.add(Token("pfalsa", "pfalsa"))
     if token.type == "ELSE":
         token = tokens.nextToken()
         check_reserved_keyword(token, "ELSE")
-        sentencas()
+        node.add(token)
+        sentencas(node)
 
-def condicao():
+def condicao(parent: Node):
     if tokens.peekToken().value == None: return
-    expressao()
-    relacao()
-    expressao()
+    node = parent.add(Token("condicao", "condicao"))
+    expressao(node)
+    relacao(node)
+    expressao(node)
 
-def relacao():
+def relacao(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("relacao", "procedimento"))
     token = tokens.nextToken()
     if token.value not in constants.RELATION_OPERATORS:
         errors.append(f"Esperava um operador relacional, recebi {token.value}")
-        
-def expressao():
-    if tokens.peekToken().value == None: return
-    termo()
-    outros_termos()
+    node.add(token)
 
-def outros_termos():
+def expressao(parent: Node):
+    if tokens.peekToken().value == None: return
+    node = parent.add(Token("expressao", "expressao"))
+    termo(node)
+    outros_termos(node)
+
+def outros_termos(node: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
-    if token.value == '+' or token.value == '-':
-        op_ad()
-        termo()
-        outros_termos()
+    if token.value in constants.MATH_OPERATORS:
+        op_ad(node)
+        termo(node)
+        outros_termos(node)
 
-def op_ad():
+def op_ad(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("op_ad", "op_ad"))
     token = tokens.nextToken()
-    if token.value != '+' and token.value != '-':
-        errors.append(f"Esperava um + ou -, recebi {token.value}")
+    if token.value not in constants.MATH_OPERATORS:
+        errors.append(f"Esperava um operador matemático, recebi {token.value}")
+    node.add(token)
 
-def termo():
+def termo(parent: Node):
     if tokens.peekToken().value == None: return
-    fator()
-    mais_fatores()
+    node = parent.add(Token("termo", "termo"))
+    fator(node)
+    mais_fatores(node)
 
-def mais_fatores():
+def mais_fatores(node: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
     if token.value == '*' or token.value == '/':
-        op_mul()
-        fator()
-        mais_fatores()
+        op_mul(node)
+        fator(node)
+        mais_fatores(node)
 
-def op_mul():
+def op_mul(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("op_mul", "op_mul"))
     token = tokens.nextToken()
     if token.value != '*' and token.value != '/':
         errors.append(f"Linha {tokens.line+1}: Esperava um * ou /, recebi {token.value}")
+    node.add(token)
 
-def fator():
+def fator(parent: Node):
     if tokens.peekToken().value == None: return
     token = tokens.peekToken()
+    node = parent.add(Token("fator", "fator"))
     if token.type == "identificador":
-        id("Variável inteira", "use")
-    elif token.type == "numero":
-        intnum()
+        id(node, "Variável inteira", "use")
+    elif token.type == "numero" or token.type == "numero flutuante":
+        intnum(node)
     elif token.value == "(":
-        expressao()
+        expressao(node)
         token = tokens.nextToken()
         check_reserved_keyword(token, ")")
+        node.add(token)
 
-def id(var_type, origin):
+def id(parent: Node, var_type, origin):
     global tokens, errors, symbol_table, identifiers, semantic_errors
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("id", "id"))
     token = tokens.nextToken()
     if token.type != "identificador":
         errors.append(f"Linha {tokens.line+1}: Esperava um identificador, mas recebi {token.type}")
     else:
-        identifiers, symbol_table, semantic_errors = analyse_id(token, var_type, origin, identifiers, symbol_table, semantic_errors)
+        identifiers, symbol_table, semantic_errors = analyse_id(token, var_type, origin, tokens, identifiers, symbol_table, semantic_errors)
+    node.add(token)
 
-def intnum():
+def intnum(parent: Node):
     if tokens.peekToken().value == None: return
+    node = parent.add(Token("num", "num"))
     token = tokens.nextToken()
-    if token.type != "numero":
+    if token.type != "numero" and token.type != "numero flutuante":
         errors.append(f"Linha {tokens.line+1}: Esperava um número, mas recebi {token.value}")
+    node.add(token)

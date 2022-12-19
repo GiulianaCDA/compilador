@@ -1,3 +1,4 @@
+from uuid import uuid4
 class Token:
     def __init__(self, value, token_type):
         self.value = value
@@ -35,6 +36,33 @@ class TokenList:
         copied.index = self.index
         return copied
 
-    def peekToken(self):
+    def peekToken(self, n=1):
         token_list_copy = self.copy()
-        return token_list_copy.nextToken()
+        for i in range(n):
+            token = token_list_copy.nextToken()
+        return token
+
+class Tree:
+    def __init__(self):
+        self.root = None
+
+class Node:
+    def __init__(self, parent, token):
+        self.id = str(uuid4())
+        self.parent = parent
+        self.value = token.value
+        self.type = token.type
+        self.children = []
+    
+    def add(self, token):
+        self.children.append(Node(self, token))
+        return self.children[-1]
+    
+    def __str__(self):
+        string = f"{self.value} ({self.type})\nFilhos: "
+        for n in self.children:
+            string += f"{n.value} "
+        return string
+        
+    def __repr__(self):
+        return self.__str__()

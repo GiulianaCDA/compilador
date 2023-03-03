@@ -1,14 +1,10 @@
 DIM n AS INT
-
-FUNCTION par(k AS INT) AS INT
-    IF k == 1 THEN
-        LET n = 0
-    END IF
-    IF k == 0 THEN
-        LET n = 1
-    END IF
-    CALL par(k - 2)
-END FUNCTION
-
-CALL par(4)
+DIM m AS FLOAT
+SUB teste
+  LET n = 10 - 2
+  LET m = 10.1 * 2.2
+  FOR i = 1 TO n
+    PRINT i
+  NEXT
+END SUB
 END
